@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.0",
-    "aws-cdk-lib": "^2.166.0",
+    "aws-cdk-lib": "^2.195.0",
     "cdk-nag": "^2.35.69",
     "constructs": "^10.4.2",
     "fetch-to-node": "^2.1.0",
