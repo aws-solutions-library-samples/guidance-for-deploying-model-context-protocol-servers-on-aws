@@ -77,17 +77,6 @@ These deployment instructions are optimized to work on **Amazon Linux 2 AMI**. D
    npm install -g aws-cdk
    ```
 
-### AWS Account Requirements
-
-1. AWS account with administrative access
-2. Enabled services:
-   - Amazon Cognito
-   - Amazon ECS
-   - AWS CloudFront
-   - Amazon DynamoDB
-   - AWS WAF
-   - AWS Secrets Manager
-
 ### AWS CDK Bootstrap
 
 If you're using AWS CDK for the first time, bootstrap your account:
@@ -112,15 +101,38 @@ cdk bootstrap
    npm install
    ```
 
-3. Deploy the stacks:
+3. Login to public ECR:
+
+   ```bash
+   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+   ```
+
+4. Deploy the stacks:
+
+   Without domain configuration:
 
    ```bash
    cdk deploy --all
    ```
 
-4. (Optional) Configure custom domain:
+   Or with domain configuration:
+
    ```bash
    cdk deploy --all --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
+   ```
+
+5. Update MCP servers:
+
+   Without domain configuration:
+
+   ```bash
+   cdk deploy MCP-Server
+   ```
+
+   Or with domain configuration:
+
+   ```bash
+   cdk deploy MCP-Server --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
    ```
 
 ## Deployment Validation
@@ -173,7 +185,7 @@ However, web-based deployment offers significant advantages for development and 
 
 While the MCP Authorization specification now provides a secure way to share MCP servers remotely, many popular MCP clients are still stdio-only or lack support for OAuth flows. The `mcp-remote` utility bridges this gap until clients implement native support for remote, authorized servers.
 
-> **Note:** mcp-remote is just *one* way to test this implementation. Our Dynamic Client Registration (DCR) implementation is only registering a single redirect URI per client. If you encounter an error related to this, you can always clear the `~/.mcp-auth` directory to redo this process.
+> **Note:** mcp-remote is just _one_ way to test this implementation. Our Dynamic Client Registration (DCR) implementation is only registering a single redirect URI per client. If you encounter an error related to this, you can always clear the `~/.mcp-auth` directory to redo this process.
 
 1. Install mcp-remote:
 

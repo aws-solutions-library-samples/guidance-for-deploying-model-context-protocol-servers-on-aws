@@ -1,0 +1,37 @@
+{
+  "name": "sample-weather-nodejs",
+  "version": "1.0.0",
+  "bin": {
+    "weather": "./build/index.js"
+  },
+  "type": "module",
+  "files": [
+    "build"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/uuid": "^10.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jose": "^6.0.11",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^3.3.2",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
+  }
+}
