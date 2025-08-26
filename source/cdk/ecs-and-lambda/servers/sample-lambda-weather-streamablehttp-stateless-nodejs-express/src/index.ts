@@ -249,8 +249,9 @@ app.use(express.json());
  * Get WWW-Authenticate header for 401 responses.
  */
 function getWWWAuthenticateHeader(req: Request): string {
-  const baseUrl =
-    process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+  // Check X-Forwarded-Proto from ALB/CloudFront, fallback to req.protocol for local testing
+  const protocol = req.get("X-Forwarded-Proto") || req.protocol;
+  const baseUrl = process.env.BASE_URL || `${protocol}://${req.get("host")}`;
   const val = `Bearer realm="mcp-server", resource_metadata="${baseUrl}/weather-nodejs-lambda/.well-known/oauth-protected-resource"`;
   console.log(val);
   return val;
@@ -314,8 +315,7 @@ app.get(
   (req: Request, res: Response) => {
     const region = process.env.AWS_REGION || "us-west-2";
     const user_pool_id = process.env.COGNITO_USER_POOL_ID;
-    const baseUrl =
-      process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const baseUrl = process.env.BASE_URL || `https://${req.get("host")}`;
 
     res.json({
       resource: `${baseUrl}/weather-nodejs-lambda/mcp`,

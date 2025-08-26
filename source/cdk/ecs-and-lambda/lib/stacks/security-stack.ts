@@ -118,23 +118,9 @@ export class SecurityStack extends cdk.Stack {
         ],
         callbackUrls: [
           "http://localhost:2299/callback", // for local development/testing with sample-auth-python server
-          "http://localhost:2299", // for local development/testing with sample-auth-python server
-          "https://${this.region}.console.aws.amazon.com/cognito/oauth2/idpresponse",
-        ],
-        logoutUrls: [
-          "http://localhost:2299/callback", // for local development/testing with sample-auth-python server
-          "http://localhost:2299", // for local development/testing with sample-auth-python server
-          "https://${this.region}.console.aws.amazon.com/cognito/oauth2",
         ],
       },
       preventUserExistenceErrors: true,
-    });
-
-    // Output user client ID
-    new cdk.CfnOutput(this, "UserPoolUserClientId", {
-      value: this.appClientUser.userPoolClientId,
-      description:
-        "The Client ID for the Cognito User Pool Client (User Authentication)",
     });
 
     // Create WAF Web ACL
