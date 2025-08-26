@@ -82,16 +82,45 @@ export class MCPServerStack extends cdk.Stack {
       },
     ]);
 
-    // Create context parameter for optional certificate ARN and custom domain
-    const certificateArn = this.node.tryGetContext("certificateArn");
+    // Create context parameters for multi-region certificate support
+    const cdnCertificateArn = this.node.tryGetContext("cdnCertificateArn");
+    const albCertificateArn = this.node.tryGetContext("albCertificateArn");
     const customDomain = this.node.tryGetContext("customDomain");
 
-    // Validate that if certificate is provided, custom domain must also be provided
-    if (certificateArn && !customDomain) {
+    // Validate certificate and domain requirements
+    if ((cdnCertificateArn || albCertificateArn) && !customDomain) {
       throw new Error(
-        "Custom domain name must be provided when using a certificate. While CloudFront's default domain will support HTTPS, " +
-          "the Application Load Balancer HTTPS listener and origin configuration require both a valid certificate and matching custom domain name."
+        "Custom domain name must be provided when using certificates. " +
+          "CloudFront and ALB require a valid domain name for certificate association."
       );
+    }
+
+    // Validate CloudFront certificate is in us-east-1 if provided
+    if (cdnCertificateArn) {
+      const cfCertRegion = cdk.Arn.split(
+        cdnCertificateArn,
+        cdk.ArnFormat.SLASH_RESOURCE_NAME
+      ).region;
+      if (cfCertRegion !== "us-east-1") {
+        throw new Error(
+          `CloudFront certificate must be in us-east-1 region, but found in ${cfCertRegion}. ` +
+            "Use cdnCertificateArn context parameter with a certificate from us-east-1."
+        );
+      }
+    }
+
+    // Validate ALB certificate is in the current stack region if provided
+    if (albCertificateArn) {
+      const albCertRegion = cdk.Arn.split(
+        albCertificateArn,
+        cdk.ArnFormat.SLASH_RESOURCE_NAME
+      ).region;
+      if (albCertRegion !== this.region) {
+        throw new Error(
+          `ALB certificate must be in the same region as the stack (${this.region}), but found in ${albCertRegion}. ` +
+            "Use albCertificateArn context parameter with a certificate from the deployment region."
+        );
+      }
     }
 
     // Create HTTP and HTTPS security groups for the ALB
@@ -136,8 +165,8 @@ export class MCPServerStack extends cdk.Stack {
       "Allow HTTPS traffic from CloudFront edge locations"
     );
 
-    // Use the appropriate security group based on certificate presence
-    this.albSecurityGroup = certificateArn
+    // Use the appropriate security group based on ALB certificate presence
+    this.albSecurityGroup = albCertificateArn
       ? httpsSecurityGroup
       : httpSecurityGroup;
 
@@ -258,8 +287,8 @@ export class MCPServerStack extends cdk.Stack {
       true
     );
 
-    // Create either HTTP or HTTPS listener based on certificate presence
-    const listener = certificateArn
+    // Create either HTTP or HTTPS listener based on ALB certificate presence
+    const listener = albCertificateArn
       ? this.loadBalancer.addListener("HttpsListener", {
           port: 443,
           protocol: elbv2.ApplicationProtocol.HTTPS,
@@ -267,7 +296,7 @@ export class MCPServerStack extends cdk.Stack {
             acm.Certificate.fromCertificateArn(
               this,
               "AlbCertificate",
-              certificateArn
+              albCertificateArn
             ),
           ],
           open: false,
@@ -307,7 +336,7 @@ export class MCPServerStack extends cdk.Stack {
 
     // Create CloudFront distribution with protocol matching ALB listener
     const albOrigin = new origins.LoadBalancerV2Origin(this.loadBalancer, {
-      protocolPolicy: certificateArn
+      protocolPolicy: albCertificateArn
         ? cloudfront.OriginProtocolPolicy.HTTPS_ONLY
         : cloudfront.OriginProtocolPolicy.HTTP_ONLY,
       httpPort: 80,
@@ -323,12 +352,12 @@ export class MCPServerStack extends cdk.Stack {
     );
 
     // Create the CloudFront distribution with conditional properties
-    if (customDomain && certificateArn) {
-      // With custom domain and certificate
+    if (customDomain && cdnCertificateArn) {
+      // With custom domain and CDN certificate
       const certificate = acm.Certificate.fromCertificateArn(
         this,
         `MCPServerStackCertificate`,
-        certificateArn
+        cdnCertificateArn
       );
 
       this.distribution = new cloudfront.Distribution(
@@ -397,8 +426,8 @@ export class MCPServerStack extends cdk.Stack {
       },
     ]);
 
-    // Create Route 53 records if custom domain is provided
-    if (customDomain && certificateArn) {
+    // Create Route 53 records if custom domain and CDN certificate are provided
+    if (customDomain && cdnCertificateArn) {
       // Look up the hosted zone
       const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
         domainName: customDomain,
@@ -416,7 +445,7 @@ export class MCPServerStack extends cdk.Stack {
 
     // Set the HTTPS URL
     const httpsUrl =
-      customDomain && certificateArn
+      customDomain && cdnCertificateArn
         ? `https://${customDomain}`
         : `https://${this.distribution.distributionDomainName}`;
 

@@ -117,10 +117,22 @@ cdk bootstrap
    cdk deploy --all
    ```
 
-   Or with domain configuration:
+   Or with domain configuration (single region - us-east-1):
 
    ```bash
-   cdk deploy --all --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
+   cdk deploy --all --context cdnCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context albCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context customDomain=mcp-server.example.com
+   ```
+
+   Or with multi-region certificate configuration:
+
+   ```bash
+   cdk deploy --all --context cdnCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context albCertificateArn=arn:aws:acm:eu-west-1:123456789012:certificate/def456 --context customDomain=mcp-server.example.com
+   ```
+
+   Or with CloudFront HTTPS only (ALB stays HTTP):
+
+   ```bash
+   cdk deploy --all --context cdnCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context customDomain=mcp-server.example.com
    ```
 
 5. Update MCP servers:
@@ -134,7 +146,7 @@ cdk bootstrap
    Or with domain configuration:
 
    ```bash
-   cdk deploy MCP-Server --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
+   cdk deploy MCP-Server --context cdnCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context albCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/abc123 --context customDomain=mcp-server.example.com
    ```
 
 ## Deployment Validation
@@ -172,6 +184,8 @@ aws cognito-idp admin-set-user-password --user-pool-id YOUR_USER_POOL_ID --usern
 ### Testing with the Sample Python MCP Client
 
 The deployment includes a sample Python MCP client that demonstrates OAuth 2.0 Protected Resource authentication with the deployed servers. This client implements the 2025-06-18 MCP specification with StreamableHTTP transport.
+
+> **Note:** This client is a modified version of the [simple-auth-client example](https://github.com/modelcontextprotocol/python-sdk/tree/main/examples/clients/simple-auth-client) from the official MCP Python SDK.
 
 ### Why Use the Python Client?
 
@@ -278,7 +292,10 @@ For detailed information, refer to these additional documentation files:
 
 1. **No Dynamic Client Registration (DCR)**: Client credentials must be pre-configured in AWS Cognito
 2. **Region availability** depends on AWS Cognito support
-3. **Custom domains** require ACM certificates in us-east-1
+3. **Multi-region certificate requirements**:
+   - CloudFront certificates (`cdnCertificateArn`) must be in us-east-1
+   - ALB certificates (`albCertificateArn`) must be in the deployment region
+   - Both certificates must cover the same custom domain
 4. **CloudFront WAF only**: AWS WAF is configured for CloudFront distribution, not ALB directly
 5. **StreamableHTTP transport only**: SSE transport (deprecated) not supported in this implementation
 6. **Some MCP clients** may not support remote connections or OAuth flows
