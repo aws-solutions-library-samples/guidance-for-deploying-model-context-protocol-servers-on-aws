@@ -25,3 +25,6 @@ cdk.out
 **/data/**.csv
 
 .env
+**/.venv
+**/agentcore-gateway-and-runtime
+**/__pycache__

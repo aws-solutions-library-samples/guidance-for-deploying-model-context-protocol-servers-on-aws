@@ -17,13 +17,14 @@
 
 ## Overview
 
-This guidance demonstrates how to deploy Model Context Protocol (MCP) servers on AWS with secure authentication using Amazon Cognito. It enables you to host MCP servers that can be accessed remotely while maintaining security through OAuth 2.0 authentication flows.
+This guidance demonstrates how to deploy Model Context Protocol (MCP) servers on AWS with secure authentication using Amazon Cognito, implementing the **2025-06-18 MCP specification** with OAuth 2.0 Protected Resource Metadata (RFC9728). It enables you to host MCP servers that can be accessed remotely while maintaining security through standards-compliant OAuth 2.0 authentication flows.
 
 The solution addresses several key challenges:
 
 - Secure hosting of MCP servers on AWS infrastructure
-- Authentication and authorization using AWS Cognito
-- Remote access to MCP servers through secure endpoints
+- Standards-compliant authentication using OAuth 2.0 Protected Resource Metadata (RFC9728)
+- Remote access to MCP servers through secure StreamableHTTP transport
+- Stateless server architecture for concurrent client support
 - Scalable and maintainable deployment using AWS CDK
 
 ### Architecture
@@ -32,16 +33,17 @@ The solution addresses several key challenges:
 
 The architecture implements:
 
-1. CloudFront distribution for global content delivery
-2. Application Load Balancer for traffic distribution
-3. ECS Fargate for containerized MCP servers
-4. AWS Cognito for user authentication
-5. AWS WAF for security
-6. DynamoDB for token storage
+1. **CloudFront distribution** for global content delivery with WAF protection
+2. **Application Load Balancer** for traffic distribution and SSL termination
+3. **ECS Fargate and Lambda** for containerized and serverless MCP servers
+4. **AWS Cognito** for OAuth 2.0 authorization server functionality
+5. **OAuth 2.0 Protected Resource Metadata** endpoints for standards-compliant authentication
+6. **StreamableHTTP transport** with stateless request handling
+7. **Four-stack CDK deployment**: VPC, Security, CloudFront WAF, and MCP Server stacks
 
 ### Cost
 
-You are responsible for the cost of the AWS services used while running this Guidance. As of May 2025, the cost for running this Guidance with the default settings in the US East (N. Virginia) Region is approximately $189.97 per month for processing moderate traffic levels.
+You are responsible for the cost of the AWS services used while running this Guidance. As of August 2025, the cost for running this Guidance with the default settings in the US East (N. Virginia) Region is approximately $194.18 per month for processing moderate traffic levels.
 
 We recommend creating a [Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html) through [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this Guidance.
 
@@ -51,16 +53,16 @@ The following table provides a sample cost breakdown for deploying this Guidance
 
 | AWS service            | Dimensions                                         | Cost [USD]        |
 | ---------------------- | -------------------------------------------------- | ----------------- |
-| VPC (NAT Gateway)      | 1 NAT Gateway × 730 hours + 100 GB data processing | $32.85            |
-| Elastic Load Balancing | Application Load Balancer with moderate traffic    | $18.62            |
-| Amazon Cognito         | 10,500 MAUs (500 above free tier)                  | $7.50             |
-| CloudFront             | 2 TB data transfer + 15M requests                  | $85.00            |
+| VPC (NAT Gateway)      | 1 NAT Gateway × 730 hours + 100 GB data processing | $37.35            |
+| Elastic Load Balancing | Application Load Balancer with moderate traffic    | $16.83            |
+| Amazon Cognito         | 10,500 MAUs (within 50,000 free tier)              | $0.00             |
+| CloudFront             | 2 TB data transfer + 15M requests                  | $87.96            |
 | WAF                    | 2 Web ACLs (CloudFront and Regional)               | $10.00            |
 | DynamoDB               | Token storage with on-demand capacity              | $5.40             |
-| ECS (Fargate)          | 1 vCPU, 2GB memory × 730 hours                     | $30.00            |
+| ECS (Fargate)          | 1 vCPU, 2GB memory × 730 hours                     | $36.04            |
 | Secrets Manager        | 1 secret for Cognito credentials                   | $0.40             |
 | Lambda                 | Custom resources (minimal usage)                   | $0.20             |
-| **Total**              |                                                    | **$189.97/month** |
+| **Total**              |                                                    | **$194.18/month** |
 
 ## Prerequisites
 
@@ -77,17 +79,6 @@ These deployment instructions are optimized to work on **Amazon Linux 2 AMI**. D
    npm install -g aws-cdk
    ```
 
-### AWS Account Requirements
-
-1. AWS account with administrative access
-2. Enabled services:
-   - Amazon Cognito
-   - Amazon ECS
-   - AWS CloudFront
-   - Amazon DynamoDB
-   - AWS WAF
-   - AWS Secrets Manager
-
 ### AWS CDK Bootstrap
 
 If you're using AWS CDK for the first time, bootstrap your account:
@@ -102,8 +93,8 @@ cdk bootstrap
 
    ```bash
    git clone <repository-url>
-   cd guidance-for-remote-mcp-servers-on-aws
-   cd source
+   cd guidance-for-deploying-model-context-protocol-servers-on-aws
+   cd source/cdk/ecs-and-lambda
    ```
 
 2. Install dependencies:
@@ -112,15 +103,38 @@ cdk bootstrap
    npm install
    ```
 
-3. Deploy the stacks:
+3. Login to public ECR:
+
+   ```bash
+   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+   ```
+
+4. Deploy the stacks:
+
+   Without domain configuration:
 
    ```bash
    cdk deploy --all
    ```
 
-4. (Optional) Configure custom domain:
+   Or with domain configuration:
+
    ```bash
    cdk deploy --all --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
+   ```
+
+5. Update MCP servers:
+
+   Without domain configuration:
+
+   ```bash
+   cdk deploy MCP-Server
+   ```
+
+   Or with domain configuration:
+
+   ```bash
+   cdk deploy MCP-Server --context certificateArn=arn:aws:acm:... --context customDomain=mcp-server.example.com
    ```
 
 ## Deployment Validation
@@ -155,66 +169,56 @@ aws cognito-idp admin-create-user --user-pool-id YOUR_USER_POOL_ID --username te
 aws cognito-idp admin-set-user-password --user-pool-id YOUR_USER_POOL_ID --username test@example.com --password "TestPass123!" --permanent
 ```
 
-### Testing with mcp-remote
+### Testing with the Sample Python MCP Client
 
-![mcp-remote](assets/mcp-remote.gif)
+The deployment includes a sample Python MCP client that demonstrates OAuth 2.0 Protected Resource authentication with the deployed servers. This client implements the 2025-06-18 MCP specification with StreamableHTTP transport.
 
-The [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) utility enables MCP clients that only support local (stdio) servers to connect to remote MCP servers with authentication support. While this tool is considered experimental, it provides a crucial bridge for testing and development.
+### Why Use the Python Client?
 
-### Why mcp-remote?
+The included Python client (`source/sample-clients/simple-auth-client-python/`) demonstrates:
 
-Most MCP servers are currently installed locally using stdio transport, which offers benefits like implicit trust between client and server, secure handling of API keys via environment variables, and simplified installation through tools like `npx` and `uvx`.
+- **OAuth 2.0 Protected Resource Metadata** (RFC9728) authentication flow
+- **StreamableHTTP transport** communication
+- **Interactive CLI interface** for testing MCP tools
+- **Standards-compliant implementation** of the 2025-06-18 MCP specification
 
-However, web-based deployment offers significant advantages for development and maintenance:
+> **Important:** This implementation does **not support Dynamic Client Registration (DCR)**. Client credentials must be pre-configured in AWS Cognito and provided via environment variables.
 
-- Easier bug fixing and feature iteration through centralized updates
-- No need to run code on users' machines
-- Simplified distribution and version management
+### Using the Python Client
 
-While the MCP Authorization specification now provides a secure way to share MCP servers remotely, many popular MCP clients are still stdio-only or lack support for OAuth flows. The `mcp-remote` utility bridges this gap until clients implement native support for remote, authorized servers.
-
-> **Note:** mcp-remote is just *one* way to test this implementation. Our Dynamic Client Registration (DCR) implementation is only registering a single redirect URI per client. If you encounter an error related to this, you can always clear the `~/.mcp-auth` directory to redo this process.
-
-1. Install mcp-remote:
+1. Navigate to the client directory:
 
    ```bash
-   npm install -g mcp-remote
+   cd source/sample-clients/simple-auth-client-python
    ```
 
-2. Create configuration (e.g., `config.json`):
+2. Install dependencies with uv:
 
-   ```json
-   {
-     "mcpServers": {
-       "weather-sse-python": {
-         "command": "npx",
-         "args": [
-           "mcp-remote@latest",
-           "https://<your-cloudfront-endpoint>/weather-python/sse"
-         ]
-       },
-       "weather-streamable-nodejs": {
-         "command": "npx",
-         "args": [
-           "mcp-remote@latest",
-           "https://<your-cloudfront-endpoint>/weather-nodejs/mcp"
-         ]
-       },
-       "weather-streamable-nodejs-lambda": {
-         "command": "npx",
-         "args": [
-           "mcp-remote@latest",
-           "https://<your-cloudfront-endpoint>/weather-nodejs-lambda/mcp"
-         ]
-       }
-     }
-   }
-   ```
-
-3. Test the connection:
    ```bash
-   npx mcp-remote@latest https://<your-cloudfront-endpoint>/weather-python/sse
+   pip install uv
+   uv sync
    ```
+
+3. Set environment variables:
+
+   ```bash
+   export MCP_SERVER_URL="https://<your-cloudfront-endpoint>/weather-nodejs/mcp"
+   export OAUTH_CLIENT_ID="<your-cognito-client-id>"
+   export OAUTH_CLIENT_SECRET="<your-cognito-client-secret>"
+   ```
+
+4. Run the client:
+
+   ```bash
+   uv run python -m mcp_simple_auth_client.main
+   ```
+
+5. Test available endpoints:
+
+   - **ECS Fargate Server**: `https://<your-cloudfront-endpoint>/weather-nodejs/mcp`
+   - **Lambda Server**: `https://<your-cloudfront-endpoint>/weather-nodejs-lambda/mcp`
+
+The client will automatically handle the OAuth flow, open a browser for authentication, and provide an interactive CLI to test the MCP tools.
 
 ## Next Steps
 
@@ -222,7 +226,7 @@ While the MCP Authorization specification now provides a secure way to share MCP
 
    - Add new server containers to ECS
    - Configure OAuth flows for new servers
-   - Update mcp-remote configuration
+   - Update client configurations for new endpoints
 
 2. Optimize costs:
 
@@ -259,27 +263,42 @@ While the MCP Authorization specification now provides a secure way to share MCP
 
 ### Additional Considerations
 
-- Public endpoints are created for OAuth flows
-- CloudFront distributions may take 15-20 minutes to deploy
-- DynamoDB tables use on-demand capacity by default
+- **OAuth 2.0 Compliant**: Implements RFC9728 Protected Resource Metadata specification
+- **Stateless Architecture**: Each request creates new server instance for concurrent client support
+- **Public endpoints are created** for OAuth Protected Resource Metadata discovery
+- **CloudFront distributions** may take 15-20 minutes to deploy
+- **Four-stack deployment**: VPC, Security, CloudFront WAF, and MCP Server stacks
 
 For detailed information, refer to these additional documentation files:
 
 - [Monthly Cost Estimate Report](assets/cost-estimate-report.md)
-- [Basic OAuth Flow](assets/mcp-cognito-oauth-flow.md)
-- [Detailed OAuth Flow](assets/detailed-mcp-cognito-oauth-flow.md)
-- [AWS Architecture](assets/aws-cognito-mcp-integration.md)
-- [Token Binding & Validation](assets/token-binding-validation-flow.md)
+- [AWS Architecture & OAuth 2.0 Flow](assets/aws-cognito-mcp-integration.md)
 
 ### Limitations
 
-1. Region availability depends on AWS Cognito support
-2. Custom domains require ACM certificates in us-east-1
-3. Some MCP clients may not support remote connections
+1. **No Dynamic Client Registration (DCR)**: Client credentials must be pre-configured in AWS Cognito
+2. **Region availability** depends on AWS Cognito support
+3. **Custom domains** require ACM certificates in us-east-1
+4. **CloudFront WAF only**: AWS WAF is configured for CloudFront distribution, not ALB directly
+5. **StreamableHTTP transport only**: SSE transport (deprecated) not supported in this implementation
+6. **Some MCP clients** may not support remote connections or OAuth flows
 
 For any feedback, questions, or suggestions, please use the issues tab under this repo.
 
 ## Revisions
+
+### [2.0.0] - 2025-06-18
+
+- **BREAKING CHANGE**: Migrate to 2025-06-18 MCP specification
+- Implement OAuth 2.0 Protected Resource Metadata (RFC9728)
+- Replace SSE transport with StreamableHTTP transport
+- Add stateless server architecture for concurrent client support
+- Remove Dynamic Client Registration (DCR) - clients must be pre-configured
+- Restructure project to `source/cdk/ecs-and-lambda/` for better organization
+- Add sample Python MCP client with interactive CLI
+- Implement four-stack CDK deployment (VPC, Security, CloudFront WAF, MCP Server)
+- Add Lambda-based MCP server deployment option
+- Remove DynamoDB token storage - now using stateless authentication
 
 ### [1.0.0] - 2025-05-06
 
