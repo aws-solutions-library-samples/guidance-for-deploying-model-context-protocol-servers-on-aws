@@ -188,7 +188,7 @@ export class MCPServerStack extends cdk.Stack {
         serverName: "WeatherNodeJs",
         serverPath: path.join(
           __dirname,
-          "../../servers/sample-ecs-weather-streamablehttp-nodejs-express"
+          "../../servers/sample-ecs-weather-streamablehttp-stateless-nodejs-express"
         ),
         healthCheckPath: "/weather-nodejs/",
         environment: {
@@ -215,7 +215,7 @@ export class MCPServerStack extends cdk.Stack {
         code: lambda.DockerImageCode.fromImageAsset(
           path.join(
             __dirname,
-            "../../servers/sample-lambda-weather-streamablehttp-nodejs-express"
+            "../../servers/sample-lambda-weather-streamablehttp-stateless-nodejs-express"
           ),
           { platform: Platform.LINUX_AMD64 }
         ),
