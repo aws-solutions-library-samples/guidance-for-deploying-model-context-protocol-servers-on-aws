@@ -287,7 +287,7 @@ For any feedback, questions, or suggestions, please use the issues tab under thi
 
 ## Revisions
 
-### [2.0.0] - 2025-06-18
+### [2.0.0] - 2025-08-25
 
 - **BREAKING CHANGE**: Migrate to 2025-06-18 MCP specification
 - Implement OAuth 2.0 Protected Resource Metadata (RFC9728)
