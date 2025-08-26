@@ -196,7 +196,7 @@ The included Python client (`source/sample-clients/simple-auth-client-python/`) 
 
    ```bash
    pip install uv
-   uv sync
+   uv sync --reinstall
    ```
 
 3. Set environment variables:

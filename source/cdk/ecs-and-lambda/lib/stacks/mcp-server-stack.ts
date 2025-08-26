@@ -6,6 +6,8 @@ import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as route53targets from "aws-cdk-lib/aws-route53-targets";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
@@ -395,8 +397,28 @@ export class MCPServerStack extends cdk.Stack {
       },
     ]);
 
+    // Create Route 53 records if custom domain is provided
+    if (customDomain && certificateArn) {
+      // Look up the hosted zone
+      const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
+        domainName: customDomain,
+      });
+
+      // Create A record for the custom domain
+      new route53.ARecord(this, "McpServerARecord", {
+        zone: hostedZone,
+        recordName: customDomain,
+        target: route53.RecordTarget.fromAlias(
+          new route53targets.CloudFrontTarget(this.distribution)
+        ),
+      });
+    }
+
     // Set the HTTPS URL
-    const httpsUrl = `https://${this.distribution.distributionDomainName}`;
+    const httpsUrl =
+      customDomain && certificateArn
+        ? `https://${customDomain}`
+        : `https://${this.distribution.distributionDomainName}`;
 
     // Output CloudFront distribution details
     new cdk.CfnOutput(this, "CloudFrontDistributions", {
