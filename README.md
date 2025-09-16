@@ -58,7 +58,6 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | Amazon Cognito         | 10,500 MAUs (within 50,000 free tier)              | $0.00             |
 | CloudFront             | 2 TB data transfer + 15M requests                  | $87.96            |
 | WAF                    | 2 Web ACLs (CloudFront and Regional)               | $10.00            |
-| DynamoDB               | Token storage with on-demand capacity              | $5.40             |
 | ECS (Fargate)          | 1 vCPU, 2GB memory × 730 hours                     | $36.04            |
 | Secrets Manager        | 1 secret for Cognito credentials                   | $0.40             |
 | Lambda                 | Custom resources (minimal usage)                   | $0.20             |
