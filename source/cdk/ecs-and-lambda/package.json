@@ -26,7 +26,7 @@
     "cdk-nag": "^2.35.69",
     "constructs": "^10.4.2",
     "fetch-to-node": "^2.1.0",
-    "hono": "^4.7.8",
+    "hono": "^4.10.3",
     "jose": "^6.0.11",
     "node-fetch": "^3.3.2",
     "source-map-support": "^0.5.21",
