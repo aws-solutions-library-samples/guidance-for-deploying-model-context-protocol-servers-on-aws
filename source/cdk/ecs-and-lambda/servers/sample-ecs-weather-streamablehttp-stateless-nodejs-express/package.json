@@ -18,7 +18,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.2",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/uuid": "^10.0.0",
     "cors": "^2.8.5",
